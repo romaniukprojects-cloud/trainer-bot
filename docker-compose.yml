@@ -1,0 +1,12 @@
+name: trainer-bot
+
+services:
+  bot:
+    build: .
+    env_file: .env
+    volumes:
+      - sqlite_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
