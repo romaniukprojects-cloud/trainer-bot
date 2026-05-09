@@ -73,6 +73,11 @@ BALANCE_HEADER = "💳 <b>Ваш баланс</b>\n\n"
 BALANCE_ACTIVE = "<b>{used}/{total}</b> занять\nПакет до: <b>{expires}</b> ({days} дн.)\n"
 BALANCE_NO_PACKAGE = "Активного пакета немає. Зверніться до тренера."
 
+# Delete client
+ASK_DELETE_CLIENT = "Виберіть клієнта для видалення:"
+DELETE_CONFIRM = "Видалити <b>{name}</b>?\n\nКлієнт буде прихований, всі дані збережуться."
+CLIENT_DELETED = "🗑 Клієнта <b>{name}</b> видалено."
+
 # Quick text mark
 QUICK_MARK_NO_MATCH = (
     "Не зрозумів жодного імені. Відправ список імен або вибери дію з меню.\n\n"

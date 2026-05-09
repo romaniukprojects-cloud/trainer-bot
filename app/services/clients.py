@@ -52,3 +52,8 @@ async def link_telegram(
 
 async def get_active_clients(session: AsyncSession) -> list[Client]:
     return await repo.get_active_all(session)
+
+
+async def deactivate_client(session: AsyncSession, client: Client) -> None:
+    client.is_active = False
+    await session.commit()

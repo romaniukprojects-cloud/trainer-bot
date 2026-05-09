@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 from app.bot.handlers import common
 from app.bot.handlers.client import balance, history
-from app.bot.handlers.trainer import add_client, mark_session, overview, payment, quick_mark
+from app.bot.handlers.trainer import add_client, delete_client, mark_session, overview, payment, quick_mark
 from app.bot.middlewares.auth import AuthMiddleware
 from app.bot.middlewares.db_session import DbSessionMiddleware
 from app.config import settings
@@ -34,6 +34,7 @@ async def main() -> None:
 
     dp.include_router(common.router)
     dp.include_router(add_client.router)
+    dp.include_router(delete_client.router)
     dp.include_router(payment.router)
     dp.include_router(mark_session.router)
     dp.include_router(overview.router)
