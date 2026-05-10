@@ -17,23 +17,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "trainers",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("telegram_user_id", sa.BigInteger(), nullable=False),
-        sa.Column("full_name", sa.String(), nullable=False),
-        sa.Column("timezone", sa.String(), nullable=False, server_default="Europe/Kyiv"),
-        sa.Column("payment_details", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.text("CURRENT_TIMESTAMP"),
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("telegram_user_id"),
-    )
-
-    op.create_table(
         "clients",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("full_name", sa.String(), nullable=False),
@@ -179,4 +162,3 @@ def downgrade() -> None:
     op.drop_table("schedule_slots")
     op.drop_table("packages")
     op.drop_table("clients")
-    op.drop_table("trainers")
