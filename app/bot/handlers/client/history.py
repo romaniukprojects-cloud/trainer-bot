@@ -13,7 +13,7 @@ router = Router()
 
 _STATUS_LABELS = {
     "attended": "✅ прийшов",
-    "missed_no_notice": "⊘ не прийшов (без попередження)",
+    "missed_no_notice": "🚫 не прийшов (без попередження)",
     "cancelled_in_advance": "🚫 скасував завчасно",
     "cancelled_by_trainer": "🚫 скасовано тренером",
     "pending_confirmation": "⏳ очікує підтвердження",

@@ -21,7 +21,7 @@ router = Router()
 
 _STATUS_EMOJI = {
     SessionStatus.attended: "✅",
-    SessionStatus.missed_no_notice: "⊘",
+    SessionStatus.missed_no_notice: "🚫",
     SessionStatus.cancelled_in_advance: "🚫",
 }
 

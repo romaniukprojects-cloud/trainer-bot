@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
@@ -6,9 +9,10 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
-from app.bot.keyboards.inline import disambiguate_kb, quick_multi_kb
+from app.bot.keyboards.inline import date_choice_kb, disambiguate_kb, quick_multi_kb
 from app.bot.keyboards.trainer_menu import (
     BTN_ADD_CLIENT,
+    BTN_CANCEL_TRAINING,
     BTN_DELETE_CLIENT,
     BTN_MARK_SESSION,
     BTN_OVERVIEW,
@@ -19,38 +23,35 @@ from app.bot.keyboards.trainer_menu import (
     trainer_main_kb,
 )
 from app.bot.states.trainer import QuickMarkStates
+from app.config import settings
 from app.db.models.client import Client
 from app.db.models.session_record import SessionStatus
 from app.db.repositories.clients import get_by_id
 from app.services.clients import get_active_clients
 from app.services.name_parser import parse_text
 from app.services.sessions import mark_attended
+from app.utils.tz import now_kyiv
 
 router = Router()
 
 _STATUS_KEY = {
     SessionStatus.attended: "attended",
     SessionStatus.missed_no_notice: "missed",
-    SessionStatus.cancelled_in_advance: "cancelled",
 }
 _STATUS_MAP = {
     "attended": SessionStatus.attended,
     "missed": SessionStatus.missed_no_notice,
-    "cancelled": SessionStatus.cancelled_in_advance,
 }
 _STATUS_LABELS = {
     "attended": "✅ прийшов",
-    "missed": "⊘ пропуск",
-    "cancelled": "🚫 скасував",
+    "missed": "🚫 пропуск",
 }
 
 _CYCLE = {
     None: "attended",
     "attended": "missed",
-    "missed": "cancelled",
-    "cancelled": None,
+    "missed": None,
 }
-
 
 _MENU_BUTTONS = {
     BTN_ADD_CLIENT,
@@ -61,13 +62,48 @@ _MENU_BUTTONS = {
     BTN_DELETE_CLIENT,
     BTN_PAYMENT_DETAILS,
     BTN_SCHEDULE,
+    BTN_CANCEL_TRAINING,
 }
 
 
+def _parse_date(text: str) -> datetime | None:
+    tz = ZoneInfo(settings.timezone)
+    today = now_kyiv().date()
+    for fmt in ("%d.%m.%Y", "%d.%m"):
+        try:
+            parsed = datetime.strptime(text.strip(), fmt)
+            if fmt == "%d.%m.%Y":
+                d = parsed.date()
+            else:
+                d = today.replace(month=parsed.month, day=parsed.day)
+                if d > today:
+                    d = d.replace(year=d.year - 1)
+            return datetime(d.year, d.month, d.day, 12, 0, tzinfo=tz).astimezone(UTC)
+        except ValueError:
+            continue
+    return None
+
+
+# ─── Date entry for quick mark (must be BEFORE absorb_text_in_dialog) ────────
+
+@router.message(QuickMarkStates.enter_date)
+async def got_date_qm(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    occurred_at = _parse_date(message.text or "")
+    if occurred_at is None:
+        await message.answer(texts.INVALID_DATE)
+        return
+    data = await state.get_data()
+    resolved: list[dict] = data["resolved"]
+    lines = await _build_lines(session, resolved, occurred_at)
+    await state.clear()
+    summary = "✅ <b>Збережено:</b>\n\n" + "".join(lines) if lines else texts.CANCEL_ACTION
+    await message.answer(summary, reply_markup=trainer_main_kb)
+
+
+# ─── Catch-all for text while any FSM is active ──────────────────────────────
+
 @router.message(~StateFilter(None), F.text, ~F.text.startswith("/"), ~F.text.in_(_MENU_BUTTONS))
 async def absorb_text_in_dialog(message: Message, is_trainer: bool) -> None:
-    # Text arrived while some FSM dialog is active but no specific handler caught it.
-    # Silently ignore so the user isn't shown a spurious "name not recognised" error.
     if not is_trainer:
         return
 
@@ -192,7 +228,6 @@ async def resolve_ambiguity(
 
 @router.callback_query(QuickMarkStates.confirming, F.data.startswith("qm_toggle:"))
 async def toggle_status(callback: CallbackQuery, state: FSMContext) -> None:
-    # Answer immediately so the button spinner never hangs, even if the edit below fails.
     await callback.answer()
 
     data = await state.get_data()
@@ -217,46 +252,42 @@ async def toggle_status(callback: CallbackQuery, state: FSMContext) -> None:
     try:
         await callback.message.edit_text(header, reply_markup=quick_multi_kb(selections, names))
     except TelegramBadRequest:
-        # Rapid double-tap: state already updated, keyboard unchanged — safe to ignore.
         pass
 
 
 @router.callback_query(QuickMarkStates.confirming, F.data == "qm_save")
-async def save_quick_mark(
-    callback: CallbackQuery,
-    state: FSMContext,
-    session: AsyncSession,
-) -> None:
+async def ask_date_qm(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
+    await state.set_state(QuickMarkStates.choosing_date)
+    try:
+        await callback.message.edit_text(texts.SESSION_ASK_DATE, reply_markup=date_choice_kb())
+    except TelegramBadRequest:
+        pass
 
+
+@router.callback_query(QuickMarkStates.choosing_date, F.data == "date_today")
+async def date_today_qm(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    await callback.answer()
     data = await state.get_data()
     resolved: list[dict] = data["resolved"]
-
-    lines = ["✅ <b>Збережено:</b>\n\n"]
-    for item in resolved:
-        if item["status"] is None:
-            continue
-        _, consumed, total, is_dup = await mark_attended(
-            session,
-            item["client_id"],
-            _STATUS_MAP[item["status"]],
-        )
-        label = _STATUS_LABELS.get(item["status"], item["status"])
-        if is_dup:
-            lines.append(f"<b>{item['name']}</b> — {label} ⚠️ вже відмічено сьогодні\n")
-        elif consumed is not None:
-            lines.append(f"<b>{item['name']}</b> — {label} ({consumed}/{total})\n")
-        else:
-            lines.append(f"<b>{item['name']}</b> — {label} ⚠️ немає пакета\n")
-
-    # Clear state only after all DB writes succeed.
+    lines = await _build_lines(session, resolved, datetime.now(UTC))
     await state.clear()
-
+    summary = "✅ <b>Збережено:</b>\n\n" + "".join(lines) if lines else texts.CANCEL_ACTION
     try:
-        await callback.message.edit_text("".join(lines))
+        await callback.message.edit_text(summary)
     except TelegramBadRequest:
         pass
     await callback.message.answer("Вибери наступну дію:", reply_markup=trainer_main_kb)
+
+
+@router.callback_query(QuickMarkStates.choosing_date, F.data == "date_other")
+async def date_other_qm(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer()
+    await state.set_state(QuickMarkStates.enter_date)
+    try:
+        await callback.message.edit_text(texts.SBD_ASK_DATE)
+    except TelegramBadRequest:
+        pass
 
 
 @router.callback_query(QuickMarkStates.confirming, F.data == "qm_cancel")
@@ -268,3 +299,28 @@ async def cancel_quick_mark(callback: CallbackQuery, state: FSMContext) -> None:
     except TelegramBadRequest:
         pass
     await callback.message.answer("Вибери дію:", reply_markup=trainer_main_kb)
+
+
+async def _build_lines(
+    session: AsyncSession,
+    resolved: list[dict],
+    occurred_at: datetime,
+) -> list[str]:
+    lines = []
+    for item in resolved:
+        if item["status"] is None:
+            continue
+        _, consumed, total, is_dup = await mark_attended(
+            session,
+            item["client_id"],
+            _STATUS_MAP[item["status"]],
+            occurred_at=occurred_at,
+        )
+        label = _STATUS_LABELS.get(item["status"], item["status"])
+        if is_dup:
+            lines.append(f"<b>{item['name']}</b> — {label} ⚠️ вже відмічено\n")
+        elif consumed is not None:
+            lines.append(f"<b>{item['name']}</b> — {label} ({consumed}/{total})\n")
+        else:
+            lines.append(f"<b>{item['name']}</b> — {label} ⚠️ немає пакета\n")
+    return lines

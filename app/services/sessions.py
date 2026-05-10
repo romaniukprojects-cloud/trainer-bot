@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.db.models.package import PackageStatus
+from app.db.models.package import Package, PackageStatus
 from app.db.models.session_record import SessionRecord, SessionSource, SessionStatus
 from app.db.repositories import packages as pkg_repo
 from app.db.repositories import sessions as repo
@@ -61,6 +61,50 @@ async def mark_attended(
         await _schedule_payment_reminder(session, client_id)
 
     return record, consumed, total, False
+
+
+async def cancel_training_day(
+    session: AsyncSession,
+    day_start: datetime,
+    day_end: datetime,
+) -> list[tuple[str, str]]:
+    """Cancel all attended/missed sessions in the given UTC window.
+
+    Returns list of (client_name, old_status_label) for the summary.
+    Reverts exhausted packages back to active if cancellation frees up a slot.
+    """
+    from app.db.repositories.sessions import get_countable_for_date
+
+    rows = await get_countable_for_date(session, day_start, day_end)
+    if not rows:
+        return []
+
+    _STATUS_LABELS = {
+        SessionStatus.attended: "✅ прийшов",
+        SessionStatus.missed_no_notice: "🚫 пропуск",
+    }
+
+    affected_package_ids: set[int] = set()
+    summary: list[tuple[str, str]] = []
+
+    for record, client_name in rows:
+        label = _STATUS_LABELS.get(record.status, record.status.value)
+        summary.append((client_name, label))
+        if record.package_id:
+            affected_package_ids.add(record.package_id)
+        record.status = SessionStatus.cancelled_by_trainer
+
+    await session.flush()
+
+    for pkg_id in affected_package_ids:
+        pkg = await session.get(Package, pkg_id)
+        if pkg and pkg.status == PackageStatus.exhausted:
+            consumed = await pkg_repo.get_consumed_count(session, pkg_id)
+            if consumed < pkg.total_sessions:
+                pkg.status = PackageStatus.active
+
+    await session.commit()
+    return summary
 
 
 async def _schedule_payment_reminder(session: AsyncSession, client_id: int) -> None:

@@ -22,7 +22,7 @@ CLIENT_ADDED = (
 
 # Register payment
 ASK_PAYMENT_CLIENT = "Виберіть клієнта для реєстрації оплати:"
-ASK_PAYMENT_AMOUNT = "Введіть суму оплати (грн):\n<i>Наприклад: 1500</i>"
+ASK_PAYMENT_AMOUNT = "Введіть суму оплати за 10 занять (грн):\n<i>Наприклад: 5000</i>"
 ASK_PAYMENT_DATE = "Дата оплати:"
 ASK_PAYMENT_DATE_MANUAL = (
     "Введіть дату у форматі <code>ДД.ММ</code> або <code>ДД.ММ.РРРР</code>:\n"
@@ -31,7 +31,7 @@ ASK_PAYMENT_DATE_MANUAL = (
 INVALID_DATE = "❌ Невірна дата. Введіть у форматі ДД.ММ або ДД.ММ.РРРР"
 PAYMENT_REGISTERED = (
     "✅ Оплату зареєстровано!\n\n"
-    "<b>{name}</b>: {price} грн\n"
+    "<b>{name}</b>: {price} грн (за 10 занять)\n"
     "Пакет до: <b>{expires}</b>"
 )
 INVALID_AMOUNT = "❌ Невірна сума. Введіть число, наприклад: <code>1500</code>"
@@ -42,7 +42,7 @@ MULTI_MARK_PROMPT = (
     "Натискай на клієнтів щоб відмітити:\n\n"
     "☐ — не відмічено (пропустити)\n"
     "✅ — прийшов\n"
-    "⊘ — не прийшов (без попередження)\n"
+    "🚫 — не прийшов (без попередження)\n"
     "🚫 — скасував завчасно\n\n"
     "Кожен наступний тап змінює статус по колу."
 )
@@ -116,6 +116,18 @@ SCHEDULE_SLOT_ADDED = "✅ Слот додано: <b>{weekday} {time}</b>"
 SCHEDULE_SLOT_REMOVED = "🗑 Слот видалено."
 SCHEDULE_INVALID_TIME = "❌ Невірний формат. Введіть час як <code>10:00</code>"
 SCHEDULE_SELECT_FOR_REMOVE = "Оберіть слот для видалення:"
+
+# Session date picker
+SESSION_ASK_DATE = "📅 На яку дату відмітити заняття?"
+
+# Cancel training
+CT_CHOOSE_DATE = "Оберіть дату тренування, яке потрібно скасувати:"
+CT_ASK_DATE = "Введіть дату у форматі <code>ДД.ММ</code> або <code>ДД.ММ.РРРР</code>:"
+CT_NOTHING = "📅 За <b>{date}</b> відмічених занять немає — нічого скасовувати."
+CT_CONFIRM_HEADER = "🚫 Скасувати тренування за <b>{date}</b>?\n\nБудуть скасовані:\n"
+CT_CONFIRM_LINE = "• {name} ({status})\n"
+CT_DONE_HEADER = "✅ Скасовано тренування за <b>{date}</b>:\n\n"
+CT_DONE_LINE = "• {name}\n"
 
 # Auto session confirmation (sent by scheduler reminder job)
 SCHED_CONFIRM_PROMPT = (

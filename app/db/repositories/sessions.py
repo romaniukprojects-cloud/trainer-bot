@@ -98,6 +98,25 @@ async def find_pending_in_window(
     return list(result.scalars().all())
 
 
+async def get_countable_for_date(
+    session: AsyncSession,
+    day_start: datetime,
+    day_end: datetime,
+) -> list[tuple[SessionRecord, str]]:
+    """All attended/missed sessions on a date with client name."""
+    result = await session.execute(
+        select(SessionRecord, Client.full_name)
+        .join(Client, SessionRecord.client_id == Client.id)
+        .where(
+            SessionRecord.status.in_([SessionStatus.attended, SessionStatus.missed_no_notice]),
+            SessionRecord.occurred_at >= day_start,
+            SessionRecord.occurred_at < day_end,
+        )
+        .order_by(Client.full_name.asc())
+    )
+    return list(result.all())
+
+
 async def find_overdue_pending(
     session: AsyncSession, cutoff: datetime
 ) -> list[SessionRecord]:

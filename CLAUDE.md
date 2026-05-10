@@ -84,16 +84,29 @@ APScheduler uses `SQLAlchemyJobStore` (same SQLite DB) — jobs survive restarts
 
 **Phase 0 — complete.** Bootstrap: all DB models, migration, Docker, config, `/start`.
 
-**Phase 1 — complete.** Manual MVP: add client, register payment (with backdated date), mark sessions via menu (multi-select), client overview, link_code flow, client balance/history.
+**Phase 1 — complete.** Manual MVP: add client, register payment (with backdated date), mark sessions via menu (multi-select), client overview, link_code flow, client balance/history. Delete client feature added.
 
-**Phase 1.5 — complete.** Fast text marking: `services/name_parser.py` (fuzzy RapidFuzz WRatio, threshold 80), space-separated + comma/newline tokenization, skip keyword detection, disambiguation flow, confirm-before-save summary, per-day idempotency guard in `mark_attended`.
+**Phase 1.5 — complete.** Fast text marking: `services/name_parser.py` (fuzzy RapidFuzz WRatio, threshold 80), space-separated + comma/newline tokenization, skip keyword detection, disambiguation flow, confirm-before-save summary, per-day idempotency guard in `mark_attended`. Menu buttons excluded from the free-text handler.
 
 **Payment date**: register payment handler asks [📅 Сьогодні / ✏️ Інша дата]; accepts DD.MM or DD.MM.YYYY; `purchased_at` passed to `register_payment()`; `expires_at = purchased_at + relativedelta(months=1)`.
 
-**Next — Phase 3 (scheduler):**
-- `app/scheduler/scheduler.py` — APScheduler setup with SQLAlchemyJobStore
-- `app/scheduler/jobs/expire_packages.py` — nightly 00:05 Kyiv
-- `app/scheduler/jobs/payment_reminder.py` — one-shot +1h after 9th session
+**Phase 2 — complete.** Extended trainer features:
+- **Sessions by date** (`bot/handlers/trainer/sessions_by_date.py`) — trainer picks 📅 Сьогодні or enters DD.MM / DD.MM.YYYY; shows all sessions for that day with emoji status and package progress (e.g. `5/10`).
+- **Schedule management** (`bot/handlers/trainer/schedule.py`) — trainer assigns recurring weekly slots (weekday + HH:MM) per client; slots stored in `schedule_slots` table; can add/remove slots via inline keyboard.
+- **Client history** (`bot/handlers/client/history.py`) — client can view last 20 sessions with date, weekday, and status label via menu or `/history` command.
+- **Payment reminder to client** — after 9th session, bot sends client a reminder message about upcoming package renewal.
+- **trainers table + migration 0002** — `db/models/trainer.py` and `db/repositories/trainers.py` added for future multi-trainer support; migration applied.
+
+**Phase 3 — complete.** All scheduler jobs implemented:
+- `expire_packages.py` — nightly 00:05 Kyiv: marks packages as `exhausted` (10 sessions used) or `expired` (past `expires_at`)
+- `prepare_auto_sessions.py` — nightly 01:00: creates `pending_confirmation` sessions 7 days ahead from `schedule_slots`
+- `confirmation_reminder.py` — hourly: sends trainer inline buttons [✅ прийшов / 🚫 пропуск] 1h before each scheduled session
+- `auto_finalize.py` — every 30 min: auto-marks as `attended` if trainer hasn't responded within 4h
+- `payment_reminder.py` — one-shot +1h: triggered from `mark_attended` on the 9th session
+
+**Auto-session confirm flow**: trainer taps inline button from any context → `sched_confirm:<session_id>:<attended|missed>` callback → `services/schedule.py::confirm_session()` → updates status and consumes package; reply shows name + package usage.
+
+**Next:** no planned phases — bot is feature-complete for solo trainer use.
 
 ## Environment
 

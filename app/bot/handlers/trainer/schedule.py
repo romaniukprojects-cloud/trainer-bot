@@ -31,8 +31,7 @@ router = Router()
 
 _STATUS_LABELS = {
     SessionStatus.attended: "✅ прийшов",
-    SessionStatus.missed_no_notice: "⊘ пропуск",
-    SessionStatus.cancelled_in_advance: "🚫 скасував",
+    SessionStatus.missed_no_notice: "🚫 пропуск",
 }
 
 
@@ -217,7 +216,6 @@ async def confirm_auto_session(
     status_map = {
         "attended": SessionStatus.attended,
         "missed": SessionStatus.missed_no_notice,
-        "cancelled": SessionStatus.cancelled_in_advance,
     }
     status = status_map.get(status_str)
     if status is None:

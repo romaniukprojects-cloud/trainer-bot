@@ -16,11 +16,15 @@ class RegisterPaymentStates(StatesGroup):
 
 class MarkSessionStates(StatesGroup):
     marking = State()
+    choosing_date = State()
+    enter_date = State()
 
 
 class QuickMarkStates(StatesGroup):
     disambiguating = State()
     confirming = State()
+    choosing_date = State()
+    enter_date = State()
 
 
 class SessionsByDateStates(StatesGroup):
@@ -38,3 +42,9 @@ class ScheduleStates(StatesGroup):
     add_weekday = State()
     add_time = State()
     remove_slot = State()
+
+
+class CancelTrainingStates(StatesGroup):
+    choosing_date = State()
+    enter_date = State()
+    confirming = State()

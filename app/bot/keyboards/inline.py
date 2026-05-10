@@ -75,14 +75,12 @@ def client_picker_kb(clients: list[Client], prefix: str) -> InlineKeyboardMarkup
 _CYCLE: dict[str | None, str | None] = {
     None: "attended",
     "attended": "missed",
-    "missed": "cancelled",
-    "cancelled": None,
+    "missed": None,
 }
 _EMOJI: dict[str | None, str] = {
     None: "☐",
     "attended": "✅",
-    "missed": "⊘",
-    "cancelled": "🚫",
+    "missed": "🚫",
 }
 
 
@@ -122,9 +120,16 @@ def slots_list_kb(slots) -> InlineKeyboardMarkup:
 def sched_confirm_kb(session_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Прийшов", callback_data=f"sched_confirm:{session_id}:attended")
-    builder.button(text="⊘ Пропуск", callback_data=f"sched_confirm:{session_id}:missed")
-    builder.button(text="🚫 Скасував", callback_data=f"sched_confirm:{session_id}:cancelled")
-    builder.adjust(3)
+    builder.button(text="🚫 Пропуск", callback_data=f"sched_confirm:{session_id}:missed")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def cancel_training_confirm_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Так, скасувати", callback_data="ct_confirm")
+    builder.button(text="❌ Ні", callback_data="ct_cancel")
+    builder.adjust(2)
     return builder.as_markup()
 
 
