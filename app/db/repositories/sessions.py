@@ -43,6 +43,7 @@ async def get_all_on_date(
         .where(
             SessionRecord.occurred_at >= day_start,
             SessionRecord.occurred_at < day_end,
+            Client.is_active == True,
             SessionRecord.status.in_([
                 SessionStatus.attended,
                 SessionStatus.missed_no_notice,
