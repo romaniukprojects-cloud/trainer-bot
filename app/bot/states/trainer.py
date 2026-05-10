@@ -21,3 +21,11 @@ class MarkSessionStates(StatesGroup):
 class QuickMarkStates(StatesGroup):
     disambiguating = State()
     confirming = State()
+
+
+class SessionsByDateStates(StatesGroup):
+    enter_date = State()
+
+
+class PaymentDetailsStates(StatesGroup):
+    entering = State()

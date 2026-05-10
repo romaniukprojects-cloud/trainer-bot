@@ -66,9 +66,9 @@ def fuzzy_find(name: str, clients: list[Client], threshold: int = 80) -> list[Cl
     if not name or not clients:
         return []
     pairs = _build_candidate_pairs(clients)
-    strings = [s for s, _ in pairs]
+    strings = [s.lower() for s, _ in pairs]
     hits = process.extract(
-        name, strings, scorer=fuzz.WRatio, limit=None, score_cutoff=threshold
+        name.lower(), strings, scorer=fuzz.WRatio, limit=None, score_cutoff=threshold
     )
     seen: set[int] = set()
     result: list[Client] = []
@@ -95,6 +95,10 @@ def _parse_space_separated(
             candidate = " ".join(words[i : i + length])
             matches = fuzzy_find(candidate, clients)
             if matches:
+                # Multi-word candidate that matches several clients = two separate names typed
+                # side-by-side; fall through to try shorter (1-word) matching instead.
+                if length > 1 and len(matches) > 1:
+                    continue
                 entries.append(
                     ParsedEntry(token=candidate, clean_name=candidate, status=status, matches=matches)
                 )
@@ -113,18 +117,22 @@ def parse_text(text: str, clients: list[Client]) -> list[ParsedEntry]:
     entries: list[ParsedEntry] = []
     for raw_token in tokenize(text):
         clean_name, status = _extract_status(raw_token)
+
+        # For multi-word tokens try splitting into individual names first.
+        # This handles "Ігор Олег" (space-separated, no comma) as two people.
+        if ' ' in clean_name:
+            sub = _parse_space_separated(clean_name, status, clients)
+            if sub and any(e.matches for e in sub):
+                entries.extend(sub)
+                continue
+
         matches = fuzzy_find(clean_name, clients)
         if matches:
             entries.append(
                 ParsedEntry(token=raw_token, clean_name=clean_name, status=status, matches=matches)
             )
         else:
-            # No match for the full token — try splitting by spaces
-            sub = _parse_space_separated(clean_name, status, clients)
-            if sub:
-                entries.extend(sub)
-            else:
-                entries.append(
-                    ParsedEntry(token=raw_token, clean_name=clean_name, status=status, matches=[])
-                )
+            entries.append(
+                ParsedEntry(token=raw_token, clean_name=clean_name, status=status, matches=[])
+            )
     return entries

@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import texts
 from app.bot.keyboards.client_menu import client_main_kb
 from app.bot.keyboards.trainer_menu import trainer_main_kb
+from app.config import settings
 from app.db.models.client import Client
+from app.db.repositories.trainers import get_or_create as get_or_create_trainer
 from app.services.clients import link_telegram
 
 router = Router()
@@ -35,6 +37,9 @@ async def cmd_start(
         return
 
     if is_trainer:
+        full_name = message.from_user.full_name or "Тренер"
+        await get_or_create_trainer(session, settings.trainer_telegram_id, full_name)
+        await session.commit()
         await message.answer(texts.START_TRAINER, reply_markup=trainer_main_kb)
     elif client:
         await message.answer(texts.START_CLIENT, reply_markup=client_main_kb)

@@ -88,3 +88,19 @@ QUICK_MARK_AMBIGUOUS = (
 )
 QUICK_MARK_SUMMARY_HEADER = "📋 <b>Підсумок:</b>\n\n"
 QUICK_MARK_UNRECOGNIZED_HEADER = "\n❓ <b>Не розпізнано:</b>\n"
+
+# Payment details
+PAYMENT_DETAILS_SHOW = "💳 <b>Реквізити для оплати:</b>\n\n{details}"
+PAYMENT_DETAILS_EMPTY = "💳 Реквізити ще не встановлено."
+PAYMENT_DETAILS_ASK = (
+    "Введіть реквізити для оплати:\n\n"
+    "<i>Наприклад: Monobank: 5375 4141 1234 5678\nПриватБанк: 4149 6090 1234 5678</i>"
+)
+PAYMENT_DETAILS_SAVED = "✅ Реквізити збережено."
+
+# Sessions by date
+SBD_CHOOSE_DATE = "Оберіть дату:"
+SBD_ASK_DATE = "Введіть дату у форматі <code>ДД.ММ</code> або <code>ДД.ММ.РРРР</code>:"
+SBD_HEADER = "📅 <b>Заняття за {date}:</b>\n\n"
+SBD_EMPTY = "📅 За <b>{date}</b> занять не відмічено."
+SBD_TOTAL = "\nВсього: <b>{count}</b>"

@@ -21,10 +21,13 @@ async def expire_packages_job() -> None:
         expired = exhausted = 0
         for pkg in packages:
             consumed = await get_consumed_count(session, pkg.id)
+            expires_at = pkg.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
             if consumed >= pkg.total_sessions:
                 pkg.status = PackageStatus.exhausted
                 exhausted += 1
-            elif pkg.expires_at <= now:
+            elif expires_at <= now:
                 pkg.status = PackageStatus.expired
                 expired += 1
 

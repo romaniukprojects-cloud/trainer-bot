@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
-from app.bot.keyboards.inline import disambiguate_kb, quick_confirm_kb
+from app.bot.keyboards.inline import disambiguate_kb, quick_multi_kb
 from app.bot.keyboards.trainer_menu import trainer_main_kb
 from app.bot.states.trainer import QuickMarkStates
 from app.db.models.client import Client
@@ -17,15 +17,27 @@ from app.services.sessions import mark_attended
 
 router = Router()
 
+_STATUS_KEY = {
+    SessionStatus.attended: "attended",
+    SessionStatus.missed_no_notice: "missed",
+    SessionStatus.cancelled_in_advance: "cancelled",
+}
 _STATUS_MAP = {
     "attended": SessionStatus.attended,
-    "missed_no_notice": SessionStatus.missed_no_notice,
-    "cancelled_in_advance": SessionStatus.cancelled_in_advance,
+    "missed": SessionStatus.missed_no_notice,
+    "cancelled": SessionStatus.cancelled_in_advance,
 }
 _STATUS_LABELS = {
     "attended": "✅ прийшов",
-    "missed_no_notice": "⊘ пропуск",
-    "cancelled_in_advance": "🚫 скасував",
+    "missed": "⊘ пропуск",
+    "cancelled": "🚫 скасував",
+}
+
+_CYCLE = {
+    None: "attended",
+    "attended": "missed",
+    "missed": "cancelled",
+    "cancelled": None,
 }
 
 
@@ -56,13 +68,17 @@ async def handle_free_text(
     for entry in entries:
         if entry.is_resolved:
             c = entry.matches[0]
-            resolved.append({"client_id": c.id, "status": entry.status.value, "name": c.full_name})
+            resolved.append({
+                "client_id": c.id,
+                "status": _STATUS_KEY.get(entry.status, "attended"),
+                "name": c.full_name,
+            })
         elif entry.is_ambiguous:
             pending.append({
                 "token": entry.clean_name,
                 "candidate_ids": [c.id for c in entry.matches],
                 "candidate_names": [c.full_name for c in entry.matches],
-                "status": entry.status.value,
+                "status": _STATUS_KEY.get(entry.status, "attended"),
             })
         else:
             unrecognized.append(entry.token)
@@ -74,7 +90,7 @@ async def handle_free_text(
         await _ask_disambiguation(message, pending[0])
     else:
         await state.set_state(QuickMarkStates.confirming)
-        await _show_summary(message, resolved, unrecognized)
+        await _show_multi_select(message, resolved, unrecognized)
 
 
 async def _ask_disambiguation(msg_or_cb: Message | CallbackQuery, item: dict) -> None:
@@ -86,26 +102,26 @@ async def _ask_disambiguation(msg_or_cb: Message | CallbackQuery, item: dict) ->
         await msg_or_cb.message.edit_text(text, reply_markup=kb)
 
 
-async def _show_summary(
-    message: Message,
+async def _show_multi_select(
+    msg_or_cb: Message | CallbackQuery,
     resolved: list[dict],
     unrecognized: list[str],
     edit: bool = False,
 ) -> None:
-    lines = [texts.QUICK_MARK_SUMMARY_HEADER]
-    for item in resolved:
-        label = _STATUS_LABELS.get(item["status"], item["status"])
-        lines.append(f"<b>{item['name']}</b> — {label}\n")
-    if unrecognized:
-        lines.append(texts.QUICK_MARK_UNRECOGNIZED_HEADER)
-        for token in unrecognized:
-            lines.append(f"«{token}»\n")
+    selections = {str(item["client_id"]): item["status"] for item in resolved}
+    names = {str(item["client_id"]): item["name"] for item in resolved}
 
-    body = "".join(lines)
-    if edit:
-        await message.edit_text(body, reply_markup=quick_confirm_kb())
+    header = "📋 <b>Відмітити заняття:</b>\n\nТапни на ім'я — змінить статус по колу."
+    if unrecognized:
+        header += "\n\n❓ <b>Не розпізнано:</b> " + ", ".join(f"«{t}»" for t in unrecognized)
+
+    kb = quick_multi_kb(selections, names)
+    if edit and isinstance(msg_or_cb, CallbackQuery):
+        await msg_or_cb.message.edit_text(header, reply_markup=kb)
+    elif isinstance(msg_or_cb, Message):
+        await msg_or_cb.answer(header, reply_markup=kb)
     else:
-        await message.answer(body, reply_markup=quick_confirm_kb())
+        await msg_or_cb.message.edit_text(header, reply_markup=kb)
 
 
 @router.callback_query(QuickMarkStates.disambiguating, F.data.startswith("disambig:"))
@@ -140,11 +156,36 @@ async def resolve_ambiguity(
         await _ask_disambiguation(callback, pending[0])
     else:
         await state.set_state(QuickMarkStates.confirming)
-        await _show_summary(callback.message, resolved, unrecognized, edit=True)
+        await _show_multi_select(callback, resolved, unrecognized, edit=True)
 
 
-@router.callback_query(QuickMarkStates.confirming, F.data == "qm_confirm")
-async def confirm_quick_mark(
+@router.callback_query(QuickMarkStates.confirming, F.data.startswith("qm_toggle:"))
+async def toggle_status(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    resolved: list[dict] = data["resolved"]
+    unrecognized: list[str] = data.get("unrecognized", [])
+
+    cid_str = callback.data.split(":")[1]
+    for item in resolved:
+        if str(item["client_id"]) == cid_str:
+            item["status"] = _CYCLE[item["status"]]
+            break
+
+    await state.update_data(resolved=resolved)
+
+    selections = {str(item["client_id"]): item["status"] for item in resolved}
+    names = {str(item["client_id"]): item["name"] for item in resolved}
+
+    header = "📋 <b>Відмітити заняття:</b>\n\nТапни на ім'я — змінить статус по колу."
+    if unrecognized:
+        header += "\n\n❓ <b>Не розпізнано:</b> " + ", ".join(f"«{t}»" for t in unrecognized)
+
+    await callback.message.edit_text(header, reply_markup=quick_multi_kb(selections, names))
+    await callback.answer()
+
+
+@router.callback_query(QuickMarkStates.confirming, F.data == "qm_save")
+async def save_quick_mark(
     callback: CallbackQuery,
     state: FSMContext,
     session: AsyncSession,
@@ -155,6 +196,8 @@ async def confirm_quick_mark(
 
     lines = ["✅ <b>Збережено:</b>\n\n"]
     for item in resolved:
+        if item["status"] is None:
+            continue
         _, consumed, total, is_dup = await mark_attended(
             session,
             item["client_id"],

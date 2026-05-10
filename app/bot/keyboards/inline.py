@@ -6,6 +6,14 @@ from app.db.models.client import Client
 
 # ─── quick text mark: disambiguation & confirm ───────────────────────────────
 
+def sbd_date_choice_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📅 Сьогодні", callback_data="sbd_today")
+    builder.button(text="✏️ Інша дата", callback_data="sbd_other")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
 def date_choice_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="📅 Сьогодні", callback_data="date_today")
@@ -28,6 +36,26 @@ def quick_confirm_kb() -> InlineKeyboardMarkup:
     builder.button(text="✅ Підтвердити", callback_data="qm_confirm")
     builder.button(text="❌ Скасувати", callback_data="qm_cancel")
     builder.adjust(2)
+    return builder.as_markup()
+
+
+def quick_multi_kb(
+    selections: dict[str, str | None],
+    names: dict[str, str],
+    unrecognized: list[str] | None = None,
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    active = sum(1 for v in selections.values() if v is not None)
+    for cid_str, status in selections.items():
+        name = names.get(cid_str, cid_str)
+        builder.button(
+            text=f"{_EMOJI[status]} {name}",
+            callback_data=f"qm_toggle:{cid_str}",
+        )
+    if active > 0:
+        builder.button(text=f"💾 Зберегти ({active})", callback_data="qm_save")
+    builder.button(text="❌ Скасувати", callback_data="qm_cancel")
+    builder.adjust(1)
     return builder.as_markup()
 
 # ─── single-client picker (used for payment) ────────────────────────────────

@@ -45,36 +45,42 @@ async def mark_attended(
 
     consumed = None
     total = None
+    should_remind = False
     if package:
         consumed = await pkg_repo.get_consumed_count(session, package.id)
         total = package.total_sessions
         if consumed >= total:
             package.status = PackageStatus.exhausted
+        elif consumed == 9 and package.last_payment_reminder_at is None:
+            package.last_payment_reminder_at = datetime.now(UTC)
+            should_remind = True
 
     await session.commit()
 
-    if consumed == 9:
+    if should_remind:
         await _schedule_payment_reminder(session, client_id)
 
     return record, consumed, total, False
 
 
 async def _schedule_payment_reminder(session: AsyncSession, client_id: int) -> None:
-    from datetime import timedelta
-
     from app.db.repositories.clients import get_by_id
+    from app.db.repositories.trainers import get_by_telegram_id as get_trainer
     from app.scheduler.jobs.payment_reminder import payment_reminder_job
     from app.scheduler.scheduler import scheduler
 
     client = await get_by_id(session, client_id)
     if client is None:
         return
+    trainer = await get_trainer(session, settings.trainer_telegram_id)
+    payment_details = trainer.payment_details if trainer else None
+
     run_date = datetime.now(UTC) + timedelta(hours=1)
     scheduler.add_job(
         payment_reminder_job,
         trigger="date",
         run_date=run_date,
-        args=[client.full_name],
+        kwargs={"client_id": client_id, "payment_details": payment_details},
         id=f"pay_remind_{client_id}",
         replace_existing=True,
     )
