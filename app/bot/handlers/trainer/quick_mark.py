@@ -6,7 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.bot.keyboards.inline import disambiguate_kb, quick_multi_kb
-from app.bot.keyboards.trainer_menu import trainer_main_kb
+from app.bot.keyboards.trainer_menu import (
+    BTN_ADD_CLIENT,
+    BTN_DELETE_CLIENT,
+    BTN_MARK_SESSION,
+    BTN_OVERVIEW,
+    BTN_PAYMENT_DETAILS,
+    BTN_REGISTER_PAYMENT,
+    BTN_SESSIONS_BY_DATE,
+    trainer_main_kb,
+)
 from app.bot.states.trainer import QuickMarkStates
 from app.db.models.client import Client
 from app.db.models.session_record import SessionStatus
@@ -41,7 +50,18 @@ _CYCLE = {
 }
 
 
-@router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
+_MENU_BUTTONS = {
+    BTN_ADD_CLIENT,
+    BTN_REGISTER_PAYMENT,
+    BTN_MARK_SESSION,
+    BTN_OVERVIEW,
+    BTN_SESSIONS_BY_DATE,
+    BTN_DELETE_CLIENT,
+    BTN_PAYMENT_DETAILS,
+}
+
+
+@router.message(StateFilter(None), F.text, ~F.text.startswith("/"), ~F.text.in_(_MENU_BUTTONS))
 async def handle_free_text(
     message: Message,
     state: FSMContext,
