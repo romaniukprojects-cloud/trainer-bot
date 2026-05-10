@@ -3,6 +3,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.db.models.client import Client
 
+WEEKDAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+WEEKDAY_NAMES_FULL = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
+
 
 # ─── quick text mark: disambiguation & confirm ───────────────────────────────
 
@@ -42,7 +45,6 @@ def quick_confirm_kb() -> InlineKeyboardMarkup:
 def quick_multi_kb(
     selections: dict[str, str | None],
     names: dict[str, str],
-    unrecognized: list[str] | None = None,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     active = sum(1 for v in selections.values() if v is not None)
@@ -86,6 +88,44 @@ _EMOJI: dict[str | None, str] = {
 
 def next_status(current: str | None) -> str | None:
     return _CYCLE[current]
+
+
+# ─── schedule management ──────────────────────────────────────────────────────
+
+def schedule_view_kb(has_slots: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="➕ Додати слот", callback_data="sched_add")
+    if has_slots:
+        builder.button(text="🗑 Видалити слот", callback_data="sched_remove")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def weekday_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for i, name in enumerate(WEEKDAY_NAMES):
+        builder.button(text=name, callback_data=f"sched_weekday:{i}")
+    builder.adjust(4)
+    return builder.as_markup()
+
+
+def slots_list_kb(slots) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for slot in slots:
+        label = f"{WEEKDAY_NAMES[slot.weekday]} {slot.time_local.strftime('%H:%M')}"
+        builder.button(text=label, callback_data=f"sched_del_slot:{slot.id}")
+    builder.button(text="❌ Скасувати", callback_data="sched_cancel_remove")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def sched_confirm_kb(session_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Прийшов", callback_data=f"sched_confirm:{session_id}:attended")
+    builder.button(text="⊘ Пропуск", callback_data=f"sched_confirm:{session_id}:missed")
+    builder.button(text="🚫 Скасував", callback_data=f"sched_confirm:{session_id}:cancelled")
+    builder.adjust(3)
+    return builder.as_markup()
 
 
 def multi_mark_kb(

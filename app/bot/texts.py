@@ -104,3 +104,23 @@ SBD_ASK_DATE = "Введіть дату у форматі <code>ДД.ММ</code>
 SBD_HEADER = "📅 <b>Заняття за {date}:</b>\n\n"
 SBD_EMPTY = "📅 За <b>{date}</b> занять не відмічено."
 SBD_TOTAL = "\nВсього: <b>{count}</b>"
+
+# Schedule management
+SCHEDULE_SELECT_CLIENT = "Оберіть клієнта для перегляду розкладу:"
+SCHEDULE_HEADER = "📆 <b>Розклад: {name}</b>\n\n"
+SCHEDULE_NO_SLOTS = "<i>Розкладу ще немає.</i>"
+SCHEDULE_SLOT_LINE = "• {weekday} {time}\n"
+SCHEDULE_ADD_WEEKDAY = "Оберіть день тижня:"
+SCHEDULE_ADD_TIME = "Введіть час у форматі <code>ГГ:ХХ</code>:\n<i>Наприклад: 10:00</i>"
+SCHEDULE_SLOT_ADDED = "✅ Слот додано: <b>{weekday} {time}</b>"
+SCHEDULE_SLOT_REMOVED = "🗑 Слот видалено."
+SCHEDULE_INVALID_TIME = "❌ Невірний формат. Введіть час як <code>10:00</code>"
+SCHEDULE_SELECT_FOR_REMOVE = "Оберіть слот для видалення:"
+
+# Auto session confirmation (sent by scheduler reminder job)
+SCHED_CONFIRM_PROMPT = (
+    "⏰ <b>Заняття через ~1 год: {name}</b>\n"
+    "{weekday}, {time}\n\n"
+    "Оберіть статус:"
+)
+SCHED_CONFIRM_ALREADY = "Статус вже виставлено."

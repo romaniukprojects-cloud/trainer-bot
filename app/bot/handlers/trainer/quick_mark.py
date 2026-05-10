@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -13,6 +14,7 @@ from app.bot.keyboards.trainer_menu import (
     BTN_OVERVIEW,
     BTN_PAYMENT_DETAILS,
     BTN_REGISTER_PAYMENT,
+    BTN_SCHEDULE,
     BTN_SESSIONS_BY_DATE,
     trainer_main_kb,
 )
@@ -58,7 +60,16 @@ _MENU_BUTTONS = {
     BTN_SESSIONS_BY_DATE,
     BTN_DELETE_CLIENT,
     BTN_PAYMENT_DETAILS,
+    BTN_SCHEDULE,
 }
+
+
+@router.message(~StateFilter(None), F.text, ~F.text.startswith("/"), ~F.text.in_(_MENU_BUTTONS))
+async def absorb_text_in_dialog(message: Message, is_trainer: bool) -> None:
+    # Text arrived while some FSM dialog is active but no specific handler caught it.
+    # Silently ignore so the user isn't shown a spurious "name not recognised" error.
+    if not is_trainer:
+        return
 
 
 @router.message(StateFilter(None), F.text, ~F.text.startswith("/"), ~F.text.in_(_MENU_BUTTONS))
@@ -181,6 +192,9 @@ async def resolve_ambiguity(
 
 @router.callback_query(QuickMarkStates.confirming, F.data.startswith("qm_toggle:"))
 async def toggle_status(callback: CallbackQuery, state: FSMContext) -> None:
+    # Answer immediately so the button spinner never hangs, even if the edit below fails.
+    await callback.answer()
+
     data = await state.get_data()
     resolved: list[dict] = data["resolved"]
     unrecognized: list[str] = data.get("unrecognized", [])
@@ -200,8 +214,11 @@ async def toggle_status(callback: CallbackQuery, state: FSMContext) -> None:
     if unrecognized:
         header += "\n\n❓ <b>Не розпізнано:</b> " + ", ".join(f"«{t}»" for t in unrecognized)
 
-    await callback.message.edit_text(header, reply_markup=quick_multi_kb(selections, names))
-    await callback.answer()
+    try:
+        await callback.message.edit_text(header, reply_markup=quick_multi_kb(selections, names))
+    except TelegramBadRequest:
+        # Rapid double-tap: state already updated, keyboard unchanged — safe to ignore.
+        pass
 
 
 @router.callback_query(QuickMarkStates.confirming, F.data == "qm_save")
@@ -210,9 +227,10 @@ async def save_quick_mark(
     state: FSMContext,
     session: AsyncSession,
 ) -> None:
+    await callback.answer()
+
     data = await state.get_data()
     resolved: list[dict] = data["resolved"]
-    await state.clear()
 
     lines = ["✅ <b>Збережено:</b>\n\n"]
     for item in resolved:
@@ -231,14 +249,22 @@ async def save_quick_mark(
         else:
             lines.append(f"<b>{item['name']}</b> — {label} ⚠️ немає пакета\n")
 
-    await callback.message.edit_text("".join(lines))
-    await callback.answer()
+    # Clear state only after all DB writes succeed.
+    await state.clear()
+
+    try:
+        await callback.message.edit_text("".join(lines))
+    except TelegramBadRequest:
+        pass
     await callback.message.answer("Вибери наступну дію:", reply_markup=trainer_main_kb)
 
 
 @router.callback_query(QuickMarkStates.confirming, F.data == "qm_cancel")
 async def cancel_quick_mark(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.clear()
-    await callback.message.edit_text(texts.CANCEL_ACTION)
     await callback.answer()
+    await state.clear()
+    try:
+        await callback.message.edit_text(texts.CANCEL_ACTION)
+    except TelegramBadRequest:
+        pass
     await callback.message.answer("Вибери дію:", reply_markup=trainer_main_kb)

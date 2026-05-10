@@ -1,4 +1,4 @@
-name: trainer-bot
+version: "3.8"
 
 services:
   bot:

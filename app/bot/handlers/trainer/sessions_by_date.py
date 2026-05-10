@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,23 +73,29 @@ async def _render(db: AsyncSession, date_local: datetime) -> str:
 
 @router.message(F.text == BTN_SESSIONS_BY_DATE)
 async def start(message: Message, state: FSMContext) -> None:
-    await state.clear()
+    await state.set_state(SessionsByDateStates.choosing)
     await message.answer(texts.SBD_CHOOSE_DATE, reply_markup=sbd_date_choice_kb())
 
 
-@router.callback_query(F.data == "sbd_today")
+@router.callback_query(SessionsByDateStates.choosing, F.data == "sbd_today")
 async def cb_today(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    await callback.answer()
     await state.clear()
     text = await _render(session, now_kyiv())
-    await callback.message.edit_text(text)
-    await callback.answer()
+    try:
+        await callback.message.edit_text(text)
+    except TelegramBadRequest:
+        pass
 
 
-@router.callback_query(F.data == "sbd_other")
+@router.callback_query(SessionsByDateStates.choosing, F.data == "sbd_other")
 async def cb_other(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(SessionsByDateStates.enter_date)
-    await callback.message.edit_text(texts.SBD_ASK_DATE)
     await callback.answer()
+    try:
+        await callback.message.edit_text(texts.SBD_ASK_DATE)
+    except TelegramBadRequest:
+        pass
 
 
 @router.message(SessionsByDateStates.enter_date)

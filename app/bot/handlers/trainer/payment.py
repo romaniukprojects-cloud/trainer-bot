@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,8 +53,11 @@ async def client_selected(callback: CallbackQuery, state: FSMContext) -> None:
     client_id = int(callback.data.split(":")[1])
     await state.update_data(client_id=client_id)
     await state.set_state(RegisterPaymentStates.enter_amount)
-    await callback.message.edit_text(texts.ASK_PAYMENT_AMOUNT)
     await callback.answer()
+    try:
+        await callback.message.edit_text(texts.ASK_PAYMENT_AMOUNT)
+    except TelegramBadRequest:
+        pass
 
 
 @router.message(RegisterPaymentStates.enter_amount)
@@ -73,17 +77,20 @@ async def got_amount(message: Message, state: FSMContext) -> None:
 
 @router.callback_query(RegisterPaymentStates.choose_date, F.data == "date_today")
 async def date_today(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    await callback.answer()
     data = await state.get_data()
     await state.clear()
     await _finish_payment(callback.message, session, data, purchased_at=None, edit=True)
-    await callback.answer()
 
 
 @router.callback_query(RegisterPaymentStates.choose_date, F.data == "date_other")
 async def date_other(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(RegisterPaymentStates.enter_date)
-    await callback.message.edit_text(texts.ASK_PAYMENT_DATE_MANUAL)
     await callback.answer()
+    try:
+        await callback.message.edit_text(texts.ASK_PAYMENT_DATE_MANUAL)
+    except TelegramBadRequest:
+        pass
 
 
 @router.message(RegisterPaymentStates.enter_date)
@@ -113,7 +120,10 @@ async def _finish_payment(
         expires=fmt_date(package.expires_at),
     )
     if edit:
-        await message.edit_text(text)
+        try:
+            await message.edit_text(text)
+        except TelegramBadRequest:
+            await message.answer(text)
         await message.answer("Вибери наступну дію:", reply_markup=trainer_main_kb)
     else:
         await message.answer(text, reply_markup=trainer_main_kb)

@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,9 @@ async def start_mark(message: Message, state: FSMContext, session: AsyncSession)
 
 @router.callback_query(MarkSessionStates.marking, F.data.startswith("toggle_mk:"))
 async def toggle_client(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    # Answer immediately so the spinner never hangs if the edit below raises.
+    await callback.answer()
+
     client_id_str = callback.data.split(":")[1]
     data = await state.get_data()
     selections: dict[str, str | None] = data["selections"]
@@ -47,15 +51,19 @@ async def toggle_client(callback: CallbackQuery, state: FSMContext, session: Asy
     await state.update_data(selections=selections)
 
     clients = [await get_by_id(session, cid) for cid in data["client_ids"]]
-    await callback.message.edit_reply_markup(reply_markup=multi_mark_kb(clients, selections))
-    await callback.answer()
+    try:
+        await callback.message.edit_reply_markup(reply_markup=multi_mark_kb(clients, selections))
+    except TelegramBadRequest:
+        # Rapid double-tap: state already updated, keyboard unchanged — safe to ignore.
+        pass
 
 
 @router.callback_query(MarkSessionStates.marking, F.data == "save_mk")
 async def save_sessions(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    await callback.answer()
+
     data = await state.get_data()
     selections: dict[str, str | None] = data["selections"]
-    await state.clear()
 
     lines = []
     for client_id_str, status_key in selections.items():
@@ -71,15 +79,23 @@ async def save_sessions(callback: CallbackQuery, state: FSMContext, session: Asy
         else:
             lines.append(f"<b>{client.full_name}</b> — {label} ⚠️ немає пакета")
 
+    # Clear state only after all DB writes succeed.
+    await state.clear()
+
     summary = "✅ Збережено:\n\n" + "\n".join(lines) if lines else texts.CANCEL_ACTION
-    await callback.message.edit_text(summary)
-    await callback.answer()
+    try:
+        await callback.message.edit_text(summary)
+    except TelegramBadRequest:
+        pass
     await callback.message.answer("Вибери наступну дію:", reply_markup=trainer_main_kb)
 
 
 @router.callback_query(MarkSessionStates.marking, F.data == "cancel_mk")
 async def cancel_mark(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.clear()
-    await callback.message.edit_text(texts.CANCEL_ACTION)
     await callback.answer()
+    await state.clear()
+    try:
+        await callback.message.edit_text(texts.CANCEL_ACTION)
+    except TelegramBadRequest:
+        pass
     await callback.message.answer("Вибери дію:", reply_markup=trainer_main_kb)

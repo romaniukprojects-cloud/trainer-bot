@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -20,7 +21,8 @@ def _details_kb():
 
 
 @router.message(F.text == BTN_PAYMENT_DETAILS)
-async def show_details(message: Message, session: AsyncSession) -> None:
+async def show_details(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    await state.clear()
     trainer = await get_by_telegram_id(session, settings.trainer_telegram_id)
     if trainer and trainer.payment_details:
         await message.answer(
@@ -34,8 +36,11 @@ async def show_details(message: Message, session: AsyncSession) -> None:
 @router.callback_query(F.data == "pd_edit")
 async def start_edit(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(PaymentDetailsStates.entering)
-    await callback.message.edit_text(texts.PAYMENT_DETAILS_ASK)
     await callback.answer()
+    try:
+        await callback.message.edit_text(texts.PAYMENT_DETAILS_ASK)
+    except TelegramBadRequest:
+        pass
 
 
 @router.message(PaymentDetailsStates.entering)

@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,5 +65,47 @@ async def get_recent_for_client(
             SessionRecord.created_at.desc(),
         )
         .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def find_auto_session_for_slot_date(
+    session: AsyncSession, slot_id: int, target_date: date, timezone: str = "Europe/Kyiv"
+) -> SessionRecord | None:
+    kyiv = ZoneInfo(timezone)
+    day_start = datetime.combine(target_date, time.min, tzinfo=kyiv).astimezone(UTC)
+    day_end = datetime.combine(target_date + timedelta(days=1), time.min, tzinfo=kyiv).astimezone(UTC)
+    result = await session.execute(
+        select(SessionRecord).where(
+            SessionRecord.schedule_slot_id == slot_id,
+            SessionRecord.scheduled_at >= day_start,
+            SessionRecord.scheduled_at < day_end,
+        )
+    )
+    return result.scalars().first()
+
+
+async def find_pending_in_window(
+    session: AsyncSession, window_start: datetime, window_end: datetime
+) -> list[SessionRecord]:
+    result = await session.execute(
+        select(SessionRecord).where(
+            SessionRecord.status == SessionStatus.pending_confirmation,
+            SessionRecord.scheduled_at >= window_start,
+            SessionRecord.scheduled_at < window_end,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def find_overdue_pending(
+    session: AsyncSession, cutoff: datetime
+) -> list[SessionRecord]:
+    """Returns pending_confirmation sessions where scheduled_at <= cutoff (4h ago)."""
+    result = await session.execute(
+        select(SessionRecord).where(
+            SessionRecord.status == SessionStatus.pending_confirmation,
+            SessionRecord.scheduled_at <= cutoff,
+        )
     )
     return list(result.scalars().all())

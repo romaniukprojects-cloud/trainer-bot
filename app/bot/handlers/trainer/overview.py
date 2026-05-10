@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,8 @@ router = Router()
 
 
 @router.message(F.text == BTN_OVERVIEW)
-async def show_overview(message: Message, session: AsyncSession) -> None:
+async def show_overview(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    await state.clear()
     clients = await get_active_clients(session)
     if not clients:
         await message.answer(texts.OVERVIEW_EMPTY)

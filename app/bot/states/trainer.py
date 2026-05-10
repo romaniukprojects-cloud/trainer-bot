@@ -24,8 +24,17 @@ class QuickMarkStates(StatesGroup):
 
 
 class SessionsByDateStates(StatesGroup):
+    choosing = State()
     enter_date = State()
 
 
 class PaymentDetailsStates(StatesGroup):
     entering = State()
+
+
+class ScheduleStates(StatesGroup):
+    select_client = State()
+    viewing = State()
+    add_weekday = State()
+    add_time = State()
+    remove_slot = State()
