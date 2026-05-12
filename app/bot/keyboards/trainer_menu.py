@@ -11,6 +11,7 @@ BTN_SCHEDULE = "📆 Розклад"
 BTN_CANCEL_TRAINING = "🚫 Скасувати тренування"
 BTN_CORRECTIONS = "✏️ Виправити заняття"
 BTN_INCOME = "💵 Дохід за період"
+BTN_INVITE_LINK = "🔗 Посилання клієнту"
 
 trainer_main_kb = ReplyKeyboardMarkup(
     keyboard=[
@@ -19,7 +20,7 @@ trainer_main_kb = ReplyKeyboardMarkup(
         [KeyboardButton(text=BTN_SESSIONS_BY_DATE), KeyboardButton(text=BTN_SCHEDULE)],
         [KeyboardButton(text=BTN_PAYMENT_DETAILS), KeyboardButton(text=BTN_DELETE_CLIENT)],
         [KeyboardButton(text=BTN_CANCEL_TRAINING), KeyboardButton(text=BTN_CORRECTIONS)],
-        [KeyboardButton(text=BTN_INCOME)],
+        [KeyboardButton(text=BTN_INCOME), KeyboardButton(text=BTN_INVITE_LINK)],
     ],
     resize_keyboard=True,
 )

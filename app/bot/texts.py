@@ -20,6 +20,15 @@ CLIENT_ADDED = (
     "Перешліть його клієнту."
 )
 
+# Invite link
+INVITE_LINK_CHOOSE = "Виберіть клієнта для генерації посилання:"
+INVITE_LINK_READY = (
+    "🔗 Посилання для <b>{name}</b> (дійсне 24 год):\n\n"
+    '<a href="{link}">{link}</a>\n\n'
+    "Перешліть його клієнту."
+)
+INVITE_LINK_NO_CLIENTS = "Немає активних клієнтів."
+
 # Register payment
 ASK_PAYMENT_CLIENT = "Виберіть клієнта для реєстрації оплати:"
 ASK_PAYMENT_AMOUNT = "Введіть суму оплати за 10 занять (грн):\n<i>Наприклад: 5000</i>"

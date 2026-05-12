@@ -16,6 +16,7 @@ from app.bot.keyboards.trainer_menu import (
     BTN_CORRECTIONS,
     BTN_DELETE_CLIENT,
     BTN_INCOME,
+    BTN_INVITE_LINK,
     BTN_MARK_SESSION,
     BTN_OVERVIEW,
     BTN_PAYMENT_DETAILS,
@@ -68,6 +69,7 @@ _MENU_BUTTONS = {
     BTN_CANCEL_TRAINING,
     BTN_CORRECTIONS,
     BTN_INCOME,
+    BTN_INVITE_LINK,
 }
 
 
