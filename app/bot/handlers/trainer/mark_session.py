@@ -13,6 +13,7 @@ from app.bot.keyboards.trainer_menu import BTN_MARK_SESSION, trainer_main_kb
 from app.bot.states.trainer import MarkSessionStates
 from app.config import settings
 from app.db.models.session_record import SessionStatus
+from app.db.repositories import audit_log as audit_repo
 from app.db.repositories.clients import get_by_id
 from app.services.clients import get_active_clients
 from app.services.sessions import mark_attended
@@ -154,7 +155,7 @@ async def _build_lines(
         if status_key is None:
             continue
         client = await get_by_id(session, int(client_id_str))
-        _, consumed, total, is_dup = await mark_attended(
+        record, consumed, total, is_dup = await mark_attended(
             session, client.id, _STATUS_MAP[status_key], occurred_at=occurred_at
         )
         label = _STATUS_LABELS[status_key]
@@ -164,6 +165,22 @@ async def _build_lines(
             lines.append(f"<b>{client.full_name}</b> — {label} ({consumed}/{total})")
         else:
             lines.append(f"<b>{client.full_name}</b> — {label} ⚠️ немає пакета")
+        if not is_dup:
+            await audit_repo.write_entry(
+                session,
+                actor_type="trainer",
+                actor_id=settings.trainer_telegram_id,
+                action="mark_session",
+                entity_type="session",
+                entity_id=record.id,
+                payload={
+                    "client_name": client.full_name,
+                    "client_id": client.id,
+                    "status": status_key,
+                    "occurred_at": occurred_at.isoformat(),
+                },
+            )
+            await session.commit()
     return lines
 
 

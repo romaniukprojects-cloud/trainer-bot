@@ -13,7 +13,9 @@ from app.bot.keyboards.inline import date_choice_kb, disambiguate_kb, quick_mult
 from app.bot.keyboards.trainer_menu import (
     BTN_ADD_CLIENT,
     BTN_CANCEL_TRAINING,
+    BTN_CORRECTIONS,
     BTN_DELETE_CLIENT,
+    BTN_INCOME,
     BTN_MARK_SESSION,
     BTN_OVERVIEW,
     BTN_PAYMENT_DETAILS,
@@ -26,6 +28,7 @@ from app.bot.states.trainer import QuickMarkStates
 from app.config import settings
 from app.db.models.client import Client
 from app.db.models.session_record import SessionStatus
+from app.db.repositories import audit_log as audit_repo
 from app.db.repositories.clients import get_by_id
 from app.services.clients import get_active_clients
 from app.services.name_parser import parse_text
@@ -63,6 +66,8 @@ _MENU_BUTTONS = {
     BTN_PAYMENT_DETAILS,
     BTN_SCHEDULE,
     BTN_CANCEL_TRAINING,
+    BTN_CORRECTIONS,
+    BTN_INCOME,
 }
 
 
@@ -310,7 +315,7 @@ async def _build_lines(
     for item in resolved:
         if item["status"] is None:
             continue
-        _, consumed, total, is_dup = await mark_attended(
+        record, consumed, total, is_dup = await mark_attended(
             session,
             item["client_id"],
             _STATUS_MAP[item["status"]],
@@ -323,4 +328,20 @@ async def _build_lines(
             lines.append(f"<b>{item['name']}</b> — {label} ({consumed}/{total})\n")
         else:
             lines.append(f"<b>{item['name']}</b> — {label} ⚠️ немає пакета\n")
+        if not is_dup:
+            await audit_repo.write_entry(
+                session,
+                actor_type="trainer",
+                actor_id=settings.trainer_telegram_id,
+                action="mark_session",
+                entity_type="session",
+                entity_id=record.id,
+                payload={
+                    "client_name": item["name"],
+                    "client_id": item["client_id"],
+                    "status": item["status"],
+                    "occurred_at": occurred_at.isoformat(),
+                },
+            )
+            await session.commit()
     return lines

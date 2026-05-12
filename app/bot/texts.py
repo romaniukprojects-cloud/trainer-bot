@@ -135,3 +135,25 @@ SCHED_CONFIRM_PROMPT = (
     "Оберіть статус:"
 )
 SCHED_CONFIRM_ALREADY = "Статус вже виставлено."
+
+# Corrections (виправити заняття)
+CORRECTIONS_HEADER = "🔙 <b>Останні відмітки:</b>\n\nОберіть запис для скасування:"
+CORRECTIONS_EMPTY = "Немає записів для виправлення."
+CORRECTIONS_CONFIRM = (
+    "Скасувати заняття?\n\n"
+    "<b>{name}</b> — {status}\n"
+    "Дата: {date}"
+)
+CORRECTIONS_ALREADY_CANCELLED = "⚠️ Це заняття вже скасовано."
+CORRECTIONS_DONE = "🗑 Скасовано: <b>{name}</b>, {date}"
+
+# Income (дохід за період)
+INCOME_CHOOSE_PERIOD = "Виберіть період:"
+INCOME_ASK_MONTH = "Введіть місяць у форматі <code>ММ.РРРР</code>:\n<i>Наприклад: 04.2026</i>"
+INCOME_INVALID_MONTH = "❌ Невірний формат. Введіть як <code>04.2026</code>"
+INCOME_RESULT = (
+    "💰 <b>Дохід за {period}</b>\n\n"
+    "Пакети: <b>{count}</b>\n"
+    "Сума: <b>{total} грн</b>"
+)
+INCOME_EMPTY = "💰 За <b>{period}</b> оплат не знайдено."

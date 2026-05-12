@@ -48,3 +48,7 @@ class CancelTrainingStates(StatesGroup):
     choosing_date = State()
     enter_date = State()
     confirming = State()
+
+
+class IncomeStates(StatesGroup):
+    enter_month = State()
