@@ -40,8 +40,12 @@ async def link_telegram(
     client = await repo.get_by_link_code(session, code)
     if client is None:
         return None
-    if client.link_code_expires_at and client.link_code_expires_at < datetime.now(UTC):
-        return None
+    if client.link_code_expires_at:
+        expires = client.link_code_expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        if expires < datetime.now(UTC):
+            return None
     client.telegram_user_id = tg_user_id
     client.telegram_username = tg_username
     client.link_code = None
