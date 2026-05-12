@@ -110,30 +110,16 @@ async def cancel_training_day(
 async def _schedule_payment_reminder(
     session: AsyncSession, client_id: int, expires_at: datetime | None
 ) -> None:
-    from app.db.repositories.clients import get_by_id
+    import asyncio
+
     from app.db.repositories.trainers import get_by_telegram_id as get_trainer
     from app.scheduler.jobs.payment_reminder import payment_reminder_job
-    from app.scheduler.scheduler import scheduler
     from app.utils.tz import to_kyiv
 
-    client = await get_by_id(session, client_id)
-    if client is None:
-        return
     trainer = await get_trainer(session, settings.trainer_telegram_id)
     payment_details = trainer.payment_details if trainer else None
-
     expires_str = to_kyiv(expires_at).strftime("%d.%m.%Y") if expires_at else None
 
-    run_date = datetime.now(UTC) + timedelta(hours=1)
-    scheduler.add_job(
-        payment_reminder_job,
-        trigger="date",
-        run_date=run_date,
-        kwargs={
-            "client_id": client_id,
-            "payment_details": payment_details,
-            "expires_at_str": expires_str,
-        },
-        id=f"pay_remind_{client_id}",
-        replace_existing=True,
+    asyncio.create_task(
+        payment_reminder_job(client_id, payment_details, expires_str)
     )
