@@ -11,7 +11,7 @@ UNKNOWN_COMMAND = "Не зрозумів. Скористайтеся меню."
 
 # Add client
 ASK_CLIENT_NAME = "Введіть повне ім'я клієнта:"
-ASK_CLIENT_PHONE = "Телефон клієнта (або /skip):"
+ASK_CLIENT_USERNAME = "Telegram-нік клієнта (або /skip):\n<i>Наприклад: @maria_fit</i>"
 ASK_CLIENT_ALIASES = "Псевдоніми через кому (або /skip):\n<i>Наприклад: Маринка, Марина К.</i>"
 CLIENT_ADDED = (
     "✅ Клієнта <b>{name}</b> додано!\n\n"

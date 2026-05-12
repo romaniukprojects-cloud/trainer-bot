@@ -10,13 +10,13 @@ from app.utils.codes import generate_link_code
 async def add_client(
     session: AsyncSession,
     full_name: str,
-    phone: str | None = None,
+    telegram_username: str | None = None,
     aliases: list[str] | None = None,
 ) -> Client:
     client = await repo.create(
         session,
         full_name=full_name,
-        phone=phone,
+        telegram_username=telegram_username,
         aliases=aliases or [],
     )
     await session.commit()

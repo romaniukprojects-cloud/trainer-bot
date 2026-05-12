@@ -12,12 +12,18 @@ from app.db.repositories.clients import get_by_id as get_client
 logger = logging.getLogger(__name__)
 
 _TEXT_CLIENT = (
-    "⚠️ У вас залишилось <b>1 заняття</b> з 10.\n\n"
-    "Будь ласка, оплатіть наступний пакет до останнього заняття.\n\n"
+    "⚠️ У вас залишилось <b>1 заняття</b> з поточного пакету.\n\n"
+    "Пакет дійсний до: <b>{expires}</b>\n\n"
+    "Будь ласка, оплатіть новий пакет занять.\n\n"
+    "Реквізити тренера:\n{payment_details}"
+)
+_TEXT_CLIENT_NO_EXPIRES = (
+    "⚠️ У вас залишилось <b>1 заняття</b> з поточного пакету.\n\n"
+    "Будь ласка, оплатіть новий пакет занять.\n\n"
     "Реквізити тренера:\n{payment_details}"
 )
 _TEXT_CLIENT_NO_DETAILS = (
-    "⚠️ У вас залишилось <b>1 заняття</b> з 10.\n\n"
+    "⚠️ У вас залишилось <b>1 заняття</b> з поточного пакету.\n\n"
     "Будь ласка, зв'яжіться з тренером для оплати наступного пакета."
 )
 _TEXT_TRAINER_NOTIFIED = (
@@ -34,7 +40,11 @@ _TEXT_TRAINER_HAS_NEXT = (
 )
 
 
-async def payment_reminder_job(client_id: int, payment_details: str | None) -> None:
+async def payment_reminder_job(
+    client_id: int,
+    payment_details: str | None,
+    expires_at_str: str | None = None,
+) -> None:
     async with AsyncSessionLocal() as session:
         client = await get_client(session, client_id)
         if client is None:
@@ -57,11 +67,12 @@ async def payment_reminder_job(client_id: int, payment_details: str | None) -> N
                 return
 
             if client.telegram_user_id:
-                text = (
-                    _TEXT_CLIENT.format(payment_details=payment_details)
-                    if payment_details
-                    else _TEXT_CLIENT_NO_DETAILS
-                )
+                if payment_details and expires_at_str:
+                    text = _TEXT_CLIENT.format(expires=expires_at_str, payment_details=payment_details)
+                elif payment_details:
+                    text = _TEXT_CLIENT_NO_EXPIRES.format(payment_details=payment_details)
+                else:
+                    text = _TEXT_CLIENT_NO_DETAILS
                 await bot.send_message(client.telegram_user_id, text)
                 await bot.send_message(
                     settings.trainer_telegram_id,

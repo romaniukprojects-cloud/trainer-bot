@@ -3,7 +3,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 class AddClientStates(StatesGroup):
     name = State()
-    phone = State()
+    username = State()
     aliases = State()
 
 
