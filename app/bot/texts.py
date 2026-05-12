@@ -16,7 +16,7 @@ ASK_CLIENT_ALIASES = "Псевдоніми через кому (або /skip):\n
 CLIENT_ADDED = (
     "✅ Клієнта <b>{name}</b> додано!\n\n"
     "Посилання для прив'язки Telegram (дійсне 24 год):\n"
-    "<code>{link}</code>\n\n"
+    '<a href="{link}">{link}</a>\n\n'
     "Перешліть його клієнту."
 )
 
