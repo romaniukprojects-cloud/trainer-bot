@@ -9,6 +9,7 @@ from app.bot.keyboards.client_menu import client_main_kb
 from app.bot.keyboards.trainer_menu import trainer_main_kb
 from app.config import settings
 from app.db.models.client import Client
+from app.db.repositories.clients import get_by_telegram_id
 from app.db.repositories.trainers import get_or_create as get_or_create_trainer
 from app.services.clients import link_telegram
 
@@ -25,6 +26,23 @@ async def cmd_start(
 ) -> None:
     await state.clear()
 
+    if is_trainer:
+        full_name = message.from_user.full_name or "Тренер"
+        await get_or_create_trainer(session, settings.trainer_telegram_id, full_name)
+        # Clean up if trainer accidentally used a client invite link
+        accidental = await get_by_telegram_id(session, message.from_user.id)
+        if accidental:
+            accidental.telegram_user_id = None
+            await session.commit()
+            await message.answer(
+                texts.TRAINER_LINK_CLEANUP.format(name=accidental.full_name),
+                reply_markup=trainer_main_kb,
+            )
+        else:
+            await session.commit()
+            await message.answer(texts.START_TRAINER, reply_markup=trainer_main_kb)
+        return
+
     args = message.text.split(maxsplit=1)[1] if message.text and " " in message.text else None
     if args:
         linked = await link_telegram(
@@ -32,16 +50,13 @@ async def cmd_start(
         )
         if linked:
             await message.answer(texts.START_CLIENT_LINKED, reply_markup=client_main_kb)
+        elif client:
+            await message.answer(texts.START_CLIENT, reply_markup=client_main_kb)
         else:
             await message.answer(texts.START_CODE_INVALID)
         return
 
-    if is_trainer:
-        full_name = message.from_user.full_name or "Тренер"
-        await get_or_create_trainer(session, settings.trainer_telegram_id, full_name)
-        await session.commit()
-        await message.answer(texts.START_TRAINER, reply_markup=trainer_main_kb)
-    elif client:
+    if client:
         await message.answer(texts.START_CLIENT, reply_markup=client_main_kb)
     else:
         await message.answer(texts.START_UNKNOWN)

@@ -20,12 +20,13 @@ class AuthMiddleware(BaseMiddleware):
         data["client"] = None
         if user:
             data["is_trainer"] = user.id == settings.trainer_telegram_id
-            # Use existing session if available (DbSessionMiddleware ran first),
-            # otherwise open a short-lived read-only session for the client lookup.
-            session = data.get("session")
-            if session is not None:
-                data["client"] = await get_by_telegram_id(session, user.id)
-            else:
-                async with AsyncSessionLocal() as s:
-                    data["client"] = await get_by_telegram_id(s, user.id)
+            if not data["is_trainer"]:
+                # Use existing session if available (DbSessionMiddleware ran first),
+                # otherwise open a short-lived read-only session for the client lookup.
+                session = data.get("session")
+                if session is not None:
+                    data["client"] = await get_by_telegram_id(session, user.id)
+                else:
+                    async with AsyncSessionLocal() as s:
+                        data["client"] = await get_by_telegram_id(s, user.id)
         return await handler(event, data)
